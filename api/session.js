@@ -12,7 +12,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Erzeugt ein kurzlebiges Client Secret (ephemeral token) für Realtime
     const r = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
       method: "POST",
       headers: {
@@ -20,8 +19,11 @@ export default async function handler(req, res) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        // Session-Konfiguration, die der Client dann für WebRTC nutzt
+        // Optional: TTL in seconds (10..7200). Default ist 600.
+        // seconds: 600,
+
         session: {
+          type: "realtime",                 // ✅ DAS war der fehlende Pflicht-Parameter
           model: "gpt-realtime-2025-08-25",
           modalities: ["audio", "text"],
           voice: "alloy",
@@ -40,7 +42,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Doku: liefert ein Objekt mit client_secret { value, expires_at }
     return res.status(200).json(data.client_secret);
   } catch (err) {
     return res.status(500).json({ error: err?.message || "Unknown server error" });
