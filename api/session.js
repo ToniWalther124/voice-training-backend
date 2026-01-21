@@ -1,26 +1,16 @@
 export default async function handler(req, res) {
   try {
-    // Optional: CORS (schadet nicht)
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    if (req.method === "OPTIONS") {
-      res.status(204).end();
-      return;
-    }
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
 
-    // API Key lesen (mehrere mögliche Namen, damit du flexibel bist)
     const apiKey =
       (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim()) ||
       (process.env.open_api_key && process.env.open_api_key.trim()) ||
       null;
 
     if (!apiKey) {
-      res.status(500).json({ error: "Missing OPENAI_API_KEY env var" });
-      return;
+      return res.status(500).json({ error: "Missing OPENAI_API_KEY env var" });
     }
 
-    // Realtime client_secret erzeugen
     const response = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
       method: "POST",
       headers: {
@@ -40,31 +30,36 @@ export default async function handler(req, res) {
     });
 
     const text = await response.text();
-    let data;
+
+    // IMMER JSON liefern – selbst wenn OpenAI Mist zurückgibt
+    let data = null;
     try {
       data = JSON.parse(text);
-    } catch {
-      res.status(500).json({ error: "OpenAI returned non-JSON", raw: text.slice(0, 300) });
-      return;
+    } catch (e) {
+      return res.status(502).json({
+        error: "OpenAI returned non-JSON",
+        status: response.status,
+        raw: text.slice(0, 300)
+      });
     }
 
     if (!response.ok) {
-      res.status(response.status).json({
+      return res.status(response.status).json({
         error: data?.error?.message || "OpenAI request failed",
         details: data
       });
-      return;
     }
 
-    // Frontend erwartet { value: "ek_..." }
-    res.status(200).json(data.client_secret);
+    // Wichtig: nur client_secret zurück (Frontend erwartet {value:...})
+    return res.status(200).json(data.client_secret);
   } catch (err) {
-    res.status(500).json({
+    return res.status(500).json({
       error: err?.message || "Server error",
       where: "api/session.js"
     });
   }
 }
+
 
 
 
