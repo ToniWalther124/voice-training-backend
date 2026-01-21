@@ -1,59 +1,59 @@
+// api/session.js
 export default async function handler(req, res) {
   try {
+    // Falls du in Vercel den Key anders benannt hast:
     const apiKey =
-      (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim()) ||
-      (process.env.open_api_key && process.env.open_api_key.trim()) ||
-      null;
+      process.env.OPENAI_API_KEY ||
+      process.env.open_api_key ||
+      process.env.OPEN_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({
         error:
-          "Missing API key. Set OPENAI_API_KEY (recommended) or open_api_key in Vercel Environment Variables (Production)."
+          "No API key found. Set OPENAI_API_KEY (recommended) or open_api_key in Vercel env vars.",
       });
     }
 
-    const r = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+    const response = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        expires_after: { anchor: "created_at", seconds: 600 },
         session: {
-          type: "realtime",
-          model: "gpt-realtime-2025-08-25",
-
-          // ✅ GA: statt "modalities"
-          output_modalities: ["audio"],
-
-          // optional (kannst du auch weglassen):
+          type: "realtime", // Pflicht
+          // model optional, aber sinnvoll
+          model: "gpt-4o-realtime-preview",
+          output_modalities: ["audio"], // oder ["text"]
           audio: {
-            input: { format: { type: "audio/pcm", rate: 24000 } },
-            output: { format: { type: "audio/pcm", rate: 24000 } }
+            output: {
+              voice: "marin", // <-- HIER ist die Voice korrekt
+              // format ist optional, kann aber drin bleiben:
+              format: { type: "audio/pcm", rate: 24000 },
+            },
           },
-
-          voice: "alloy",
           instructions:
-            "Du bist ein Trainings-Rollenspielpartner für Fitnessstudio-Mitarbeitende. Du bleibst konsequent in der Kundenrolle. Du coachst NICHT während des Gesprächs. Feedback erfolgt erst nach dem Training."
-        }
-      })
+            "Du bist ein Rollenspiel-Sparringspartner für Fitnessstudio-Mitarbeitende. Bleib realistisch, freundlich, klar und gib danach kurzes Feedback.",
+        },
+      }),
     });
 
-    const data = await r.json();
+    const data = await response.json();
 
-    if (!r.ok) {
-      return res.status(r.status).json({
-        error: data?.error?.message || "Failed to create realtime client secret",
-        details: data
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data?.error?.message || "OpenAI request failed",
+        details: data,
       });
     }
 
-    return res.status(200).json(data.client_secret);
+    return res.status(200).json(data);
   } catch (err) {
-    return res.status(500).json({ error: err?.message || "Unknown server error" });
+    return res.status(500).json({ error: err.message || "Server error" });
   }
 }
+
 
 
 
