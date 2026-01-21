@@ -19,13 +19,20 @@ export default async function handler(req, res) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        // Optional: TTL in seconds (10..7200). Default ist 600.
-        // seconds: 600,
-
+        expires_after: { anchor: "created_at", seconds: 600 },
         session: {
-          type: "realtime",                 // ✅ DAS war der fehlende Pflicht-Parameter
+          type: "realtime",
           model: "gpt-realtime-2025-08-25",
-          modalities: ["audio", "text"],
+
+          // ✅ GA: statt "modalities"
+          output_modalities: ["audio"],
+
+          // optional (kannst du auch weglassen):
+          audio: {
+            input: { format: { type: "audio/pcm", rate: 24000 } },
+            output: { format: { type: "audio/pcm", rate: 24000 } }
+          },
+
           voice: "alloy",
           instructions:
             "Du bist ein Trainings-Rollenspielpartner für Fitnessstudio-Mitarbeitende. Du bleibst konsequent in der Kundenrolle. Du coachst NICHT während des Gesprächs. Feedback erfolgt erst nach dem Training."
@@ -47,5 +54,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err?.message || "Unknown server error" });
   }
 }
+
 
 
