@@ -1,5 +1,3 @@
-import OpenAI from "openai";
-
 export default async function handler(req, res) {
   try {
     const apiKey =
@@ -14,22 +12,39 @@ export default async function handler(req, res) {
       });
     }
 
-    const client = new OpenAI({ apiKey });
-
-    const session = await client.realtime.sessions.create({
-      model: "gpt-4o-realtime-preview",
-      voice: "alloy",
-      instructions: `
-Du bist ein Trainings-Rollenspielpartner für Fitnessstudio-Mitarbeitende.
-Du bleibst konsequent in der Kundenrolle.
-Du coachst NICHT während des Gesprächs.
-Feedback erfolgt erst nach dem Training.
-      `.trim()
+    // Erzeugt ein kurzlebiges Client Secret (ephemeral token) für Realtime
+    const r = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        // Session-Konfiguration, die der Client dann für WebRTC nutzt
+        session: {
+          model: "gpt-realtime-2025-08-25",
+          modalities: ["audio", "text"],
+          voice: "alloy",
+          instructions:
+            "Du bist ein Trainings-Rollenspielpartner für Fitnessstudio-Mitarbeitende. Du bleibst konsequent in der Kundenrolle. Du coachst NICHT während des Gesprächs. Feedback erfolgt erst nach dem Training."
+        }
+      })
     });
 
-    res.status(200).json(session.client_secret);
+    const data = await r.json();
+
+    if (!r.ok) {
+      return res.status(r.status).json({
+        error: data?.error?.message || "Failed to create realtime client secret",
+        details: data
+      });
+    }
+
+    // Doku: liefert ein Objekt mit client_secret { value, expires_at }
+    return res.status(200).json(data.client_secret);
   } catch (err) {
-    res.status(500).json({ error: err?.message || "Unknown server error" });
+    return res.status(500).json({ error: err?.message || "Unknown server error" });
   }
 }
+
 
